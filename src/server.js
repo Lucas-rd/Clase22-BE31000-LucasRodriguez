@@ -1,11 +1,14 @@
 import express from 'express'
 import routes from './router/index.js'
+import { normalize, schema, denormalize } from "normalizr";
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import path from 'path';
 import { Server } from 'socket.io'
 import Contenedor from './utils/classContenedor.js'
 import Chat from './utils/classChat.js'
+import { chatDAO } from './DAO/chatDAO.js';
+import { normalizedMessages } from './utils/normalize.js';
 
 
 const app = express()
@@ -41,13 +44,22 @@ const sqlite3Config = {
 const contenedor = new Contenedor(mysqlConfig, 'products')
 const chat = new Chat(sqlite3Config, 'chat')
 
-const messageArray = []
-
 //Aca vienen las interacciones de io: servidor<-->cliente
 io.on('connection', async socket =>  {
     console.log(`Se conecto el cliente con id: ${socket.id}`)
     socket.emit('server:products', await contenedor.getAll())
-    socket.emit('server:mensajes', await chat.getAll())
+
+    //recibo los mensajes de la base altasMongo y los guardo en una variable
+    const messagesFromMongo = await chatDAO.getAll()
+    
+    //Comienzo normalizacion de mensajes en el back antes de enviarlos al front
+    const author = new schema.Entity("author", {}, { idAttribute: "userEmail" })
+    const message = new schema.Entity("message", { author: author }, { idAttribute: "_id" })
+    const schemaMessages = new schema.Entity("messages", { messages:[message] })
+    const normalizedChat = normalize({ id: "messages", messagesFromMongo }, schemaMessages)
+
+    //Envio mensajes normalizados al front
+    socket.emit('server:mensajes', normalizedChat)
 
     //Evento de carga de nuevo producto
     socket.on('client:newProduct', async (newProductInfo) => {
@@ -56,10 +68,19 @@ io.on('connection', async socket =>  {
     })
     
     //Evento de nuevo mensaje
-    socket.on('client:message', async messageInfo => {
-        await chat.postMessage(messageInfo)
+    socket.on('client:message', async (messageInfo) => {
+        await chatDAO.postMessage(messageInfo)
 
-        io.emit('server:mensajes', await chat.getAll())
+        //recibo los mensajes de la base altasMongo y los guardo en una variable
+        const messagesFromMongo = await chatDAO.getAll()
+        
+        //Comienzo normalizacion de mensajes en el back antes de enviarlos al front
+        const author = new schema.Entity("author", {}, { idAttribute: "userEmail" })
+        const message = new schema.Entity("message", { author: author }, { idAttribute: "_id" })
+        const schemaMessages = new schema.Entity("messages", { messages:[message] })
+        const normalizedChat = normalize({ id: "messages", messagesFromMongo }, schemaMessages)
+        
+        io.emit('server:mensajes', normalizedChat)
     })
 })
 
