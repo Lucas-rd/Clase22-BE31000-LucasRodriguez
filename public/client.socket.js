@@ -49,23 +49,21 @@ const sendMessage = (messageInfo) => {
 }
 
 const renderMessage = (messageInfo) => {
-
     //Logica de normalizacion
     const author = new normalizr.schema.Entity("author", {}, { idAttribute: "userEmail" })
     const message = new normalizr.schema.Entity("message", { author: author }, { idAttribute: "_id" })
-    const schemaMessages = new normalizr.schema.Entity("messages", { messages:[message] }, { idAttribute: "_id" } )
+    const schemaMessages = new normalizr.schema.Entity("messages", { messages:[message] })
     
     //Denormalizo mensajes
     const denormalizedMessages = normalizr.denormalize(messageInfo.result, schemaMessages, messageInfo.entities )
-
     //recorro mensajes denormalizados y los inserto en el html
-    const html = denormalizedMessages.messagesFromMongo.map( msgInfo => {
+    const html = denormalizedMessages.messages.map( msgInfo => {
         return(`<div>
-                    <strong style="color: blue">${msgInfo.author.alias}</strong>
+                    <strong style="color: blue">${msgInfo._doc.author.alias}</strong>
                     <br>
-                    <img src="${msgInfo.author.avatar}" alt="">
+                    <img src="${msgInfo._doc.author.avatar}" alt="">
                     <br>
-                    <em style="color:green">${msgInfo.message}</em>
+                    <em style="color:green">${msgInfo._doc.message}</em>
                     <br>    
                     <br>    
                     <br>    

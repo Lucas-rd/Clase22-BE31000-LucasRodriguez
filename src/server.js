@@ -49,14 +49,9 @@ io.on('connection', async socket =>  {
     console.log(`Se conecto el cliente con id: ${socket.id}`)
     socket.emit('server:products', await contenedor.getAll())
 
-    //recibo los mensajes de la base altasMongo y los guardo en una variable
+    //recibo los mensajes de la base altasMongo y los guardo en una variable, normalizo y envio al socket
     const messagesFromMongo = await chatDAO.getAll()
-    
-    //Comienzo normalizacion de mensajes en el back antes de enviarlos al front
-    const author = new schema.Entity("author", {}, { idAttribute: "userEmail" })
-    const message = new schema.Entity("message", { author: author }, { idAttribute: "_id" })
-    const schemaMessages = new schema.Entity("messages", { messages:[message] })
-    const normalizedChat = normalize({ id: "messages", messagesFromMongo }, schemaMessages)
+    const normalizedChat = normalizedMessages(messagesFromMongo)
 
     //Envio mensajes normalizados al front
     socket.emit('server:mensajes', normalizedChat)
@@ -71,15 +66,9 @@ io.on('connection', async socket =>  {
     socket.on('client:message', async (messageInfo) => {
         await chatDAO.postMessage(messageInfo)
 
-        //recibo los mensajes de la base altasMongo y los guardo en una variable
+        //recibo los mensajes de la base altasMongo y los guardo en una variable, normalizo y envio al socket
         const messagesFromMongo = await chatDAO.getAll()
-        
-        //Comienzo normalizacion de mensajes en el back antes de enviarlos al front
-        const author = new schema.Entity("author", {}, { idAttribute: "userEmail" })
-        const message = new schema.Entity("message", { author: author }, { idAttribute: "_id" })
-        const schemaMessages = new schema.Entity("messages", { messages:[message] })
-        const normalizedChat = normalize({ id: "messages", messagesFromMongo }, schemaMessages)
-        
+        const normalizedChat = normalizedMessages(messagesFromMongo)
         io.emit('server:mensajes', normalizedChat)
     })
 })

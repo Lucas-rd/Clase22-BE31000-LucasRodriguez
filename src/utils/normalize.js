@@ -1,7 +1,7 @@
 import { normalize, schema, denormalize } from "normalizr";
 
 
-function normalizedMessages(messages){
+const normalizedMessages = (messages) => {
     const author = new schema.Entity("author", {}, { idAttribute: "userEmail" })
     const message = new schema.Entity("message", { author: author }, { idAttribute: "_id" })
     const schemaMessages = new schema.Entity("messages", { messages:[message] })
